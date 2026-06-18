@@ -81,6 +81,7 @@ pub fn get_isle_compilations(
         .join("src")
         .join("isa")
         .join("pulley_shared");
+    let src_isa_w65c816 = codegen_crate_dir.join("src").join("isa").join("w65c816");
 
     // This is a set of ISLE compilation units.
     //
@@ -190,6 +191,18 @@ pub fn get_isle_compilations(
                     pulley_gen.clone(),
                     clif_lower_isle.clone(),
                 ],
+            },
+            // The W65C816 instruction selector.
+            IsleCompilation {
+                name: "w65c816".to_string(),
+                output: gen_dir.join("isle_w65c816.rs"),
+                inputs: vec![
+                    prelude_isle.clone(),
+                    prelude_lower_isle.clone(),
+                    src_isa_w65c816.join("inst.isle"),
+                    src_isa_w65c816.join("lower.isle"),
+                ],
+                untracked_inputs: vec![numerics_isle.clone(), clif_lower_isle.clone()],
             },
         ],
     }

@@ -104,11 +104,12 @@ pulley = [
     "pulley-interpreter/disas",
     "cranelift-codegen-meta/pulley",
 ]
+w65c816 = []
 # Enable the ISA target for the host machine
 host-arch = []
 
 # Option to enable all architectures.
-all-arch = ["all-native-arch", "pulley"]
+all-arch = ["all-native-arch", "pulley", "w65c816"]
 
 # Option to enable all architectures that correspond to an actual native target
 # (that is, exclude Pulley).

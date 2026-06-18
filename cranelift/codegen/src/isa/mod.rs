@@ -83,6 +83,9 @@ mod pulley64;
 #[cfg(feature = "pulley")]
 mod pulley_shared;
 
+#[cfg(feature = "w65c816")]
+mod w65c816;
+
 pub mod unwind;
 
 mod call_conv;
@@ -121,6 +124,13 @@ pub fn lookup(triple: Triple) -> Result<Builder, LookupError> {
         }
         _ => Err(LookupError::Unsupported),
     }
+}
+
+/// Gets the builder for the W65C816 ISA
+/// It is not supported by target_lexicon::triple, so it needs a special case
+pub fn lookup_w65c816() -> Result<Builder, LookupError> {
+    let triple = triple!("unknown");
+    isa_builder!(w65c816, (feature = "w65c816"), triple)
 }
 
 /// The string names of all the supported, but possibly not enabled, architectures. The elements of

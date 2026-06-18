@@ -1103,11 +1103,17 @@ impl<'a> Parser<'a> {
                         Some(w) => w,
                         None => return err!(loc, "expected target triple"),
                     };
-                    let triple = match Triple::from_str(target_name) {
-                        Ok(triple) => triple,
-                        Err(err) => return err!(loc, err),
+                    let isa_builder = match target_name {
+                        "w65c816" => isa::lookup_w65c816(),
+                        _ => {
+                            let triple = match Triple::from_str(target_name) {
+                                Ok(triple) => triple,
+                                Err(err) => return err!(loc, err),
+                            };
+                            isa::lookup(triple)
+                        }
                     };
-                    let mut isa_builder = match isa::lookup(triple) {
+                    let mut isa_builder = match isa_builder {
                         Err(isa::LookupError::SupportDisabled) => {
                             continue;
                         }

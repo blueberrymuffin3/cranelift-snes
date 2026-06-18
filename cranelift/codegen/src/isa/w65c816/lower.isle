@@ -1,0 +1,13 @@
+;; The main lowering constructor term: takes a clif `Inst` and returns the
+;; register(s) within which the lowered instruction's result values live.
+(decl partial lower (Inst) InstOutput)
+
+(rule (lower (iadd $I16 a b))
+  (w65_alu_op_add a b))
+
+;; Branch Lowering
+(decl partial lower_branch (Inst MachLabelSlice) Unit)
+
+
+(rule (lower_branch (jump _) (single_target label))
+      (emit_side_effect (w65_bra label)))

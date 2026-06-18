@@ -1,0 +1,31 @@
+(type AluOp
+  (enum
+    (Ora)
+    (And)
+    (Adc)
+    (Sbc)
+))
+
+(type MInst
+  (enum
+    (Alu
+      (op AluOp)
+      (rd Reg)
+      (rs1 Reg)
+      (rs2 Reg))
+    (Bra (label MachLabel))
+))
+
+(decl w65_alu_op (AluOp Reg Reg) Reg)
+(rule (w65_alu_op op src1 src2)
+      (let ((dst Reg (temp_writable_reg $I16))
+            (_ Unit (emit (MInst.Alu op dst src1 src2))))
+        dst))
+
+(decl w65_alu_op_add (Reg Reg) Reg)
+(rule (w65_alu_op_add src1 src2)
+  (w65_alu_op (AluOp.Adc) src1 src2))
+
+(decl w65_bra (MachLabel) SideEffectNoResult)
+(rule (w65_bra label)
+  (SideEffectNoResult.Inst (MInst.Bra label)))
