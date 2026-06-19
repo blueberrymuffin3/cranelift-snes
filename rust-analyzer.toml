@@ -1,0 +1,10 @@
+[rust-analyzer]
+checkOnSave = false
+
+[rust-analyzer.cachePriming]
+enable = false
+
+[rust-analyzer.cargo]
+allTargets = false
+features = ["all-arch"]
+

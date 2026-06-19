@@ -5,11 +5,20 @@ use crate::MachInst;
 use crate::binemit::CodeOffset;
 use crate::isa::w65c816::abi::W65C816MachineDeps;
 pub use crate::isa::w65c816::lower::isle::generated_code::MInst as Inst;
+use crate::machinst::ArgPair;
 use crate::machinst::MachInstLabelUse;
+use crate::machinst::OperandVisitorImpl;
+use crate::machinst::RegClass;
+use crate::opts::I16;
 
 mod emit;
+mod regs;
 
 pub use emit::EmitInfo;
+use regalloc2::OperandKind;
+use regalloc2::OperandPos;
+pub use regs::W65C816Reg;
+pub use regs::make_machine_env;
 
 impl MachInst for Inst {
     type ABIMachineSpec = W65C816MachineDeps;
@@ -18,7 +27,30 @@ impl MachInst for Inst {
     const TRAP_OPCODE: &'static [u8] = &[0xDB];
 
     fn get_operands(&mut self, collector: &mut impl crate::machinst::OperandVisitor) {
-        todo!()
+        match self {
+            Inst::Alu { rd, rs1, rs2, .. } => {
+                collector.reg_use(rs1);
+                collector.add_operand(
+                    rs2,
+                    regalloc2::OperandConstraint::Stack,
+                    OperandKind::Use,
+                    OperandPos::Late,
+                );
+                collector.reg_def(rd);
+            }
+            Inst::Args { args } => {
+                for ArgPair { vreg, preg } in args {
+                    collector.reg_fixed_def(vreg, *preg);
+                }
+            }
+            Inst::Rets { rets } => {
+                for crate::machinst::RetPair { vreg, preg } in rets {
+                    collector.reg_fixed_use(vreg, *preg);
+                }
+            }
+            Inst::Bra { .. } => {}
+            Inst::Ret { .. } => {}
+        }
     }
 
     fn is_move(&self) -> Option<(crate::Writable<crate::Reg>, crate::Reg)> {
@@ -67,11 +99,16 @@ impl MachInst for Inst {
         &'static [crate::machinst::RegClass],
         &'static [crate::ir::Type],
     )> {
-        todo!()
+        if ty.bytes() > 2 {
+            return Err(crate::CodegenError::Unsupported(
+                "Only 8 and 16 bit values supported".into(),
+            ));
+        }
+        Ok((&[RegClass::Int], &[I16]))
     }
 
     fn canonical_type_for_rc(rc: crate::machinst::RegClass) -> crate::ir::Type {
-        todo!()
+        I16
     }
 
     fn gen_jump(target: crate::MachLabel) -> Self {
@@ -87,10 +124,6 @@ impl MachInst for Inst {
     }
 
     fn worst_case_size() -> crate::binemit::CodeOffset {
-        todo!()
-    }
-
-    fn worst_case_island_growth() -> crate::binemit::CodeOffset {
         todo!()
     }
 

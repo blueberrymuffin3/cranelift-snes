@@ -10,15 +10,18 @@
   (enum
     (Alu
       (op AluOp)
-      (rd Reg)
+      (rd WritableReg)
       (rs1 Reg)
       (rs2 Reg))
     (Bra (label MachLabel))
+    (Args (args VecArgPair))
+    (Rets (rets VecRetPair))
+    (Ret)
 ))
 
 (decl w65_alu_op (AluOp Reg Reg) Reg)
 (rule (w65_alu_op op src1 src2)
-      (let ((dst Reg (temp_writable_reg $I16))
+      (let ((dst WritableReg (temp_writable_reg $I16))
             (_ Unit (emit (MInst.Alu op dst src1 src2))))
         dst))
 

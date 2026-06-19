@@ -4,8 +4,8 @@ use crate::machinst::{CallInfo, MachInst, isle::*};
 use crate::machinst::{VCodeConstant, VCodeConstantData};
 use crate::{
     ir::{
-        AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlagsData, Opcode,
-        TrapCode, Value, ValueList, condcodes::*, immediates::*, types::*,
+        AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags, Opcode, TrapCode,
+        Value, ValueList, condcodes::*, immediates::*, types::*,
     },
     isa::w65c816::inst::*,
     machinst::{ArgPair, CallArgList, CallRetList, InstOutput},
@@ -13,6 +13,8 @@ use crate::{
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use regalloc2::PReg;
+
+type VecArgPair = Vec<ArgPair>;
 
 pub mod generated_code;
 
@@ -40,8 +42,9 @@ impl<'a, 'b> W65C816IsleContext<'a, 'b, MInst, W65C816Backend> {
 impl generated_code::Context for W65C816IsleContext<'_, '_, MInst, W65C816Backend> {
     isle_lower_prelude_methods!();
 
-    fn emit(&mut self, inst: &MInst) {
-        todo!()
+    #[inline]
+    fn emit(&mut self, arg0: &MInst) -> Unit {
+        self.lower_ctx.emit(arg0.clone());
     }
 }
 

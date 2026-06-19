@@ -11,3 +11,7 @@
 
 (rule (lower_branch (jump _) (single_target label))
       (emit_side_effect (w65_bra label)))
+
+
+(rule (lower (return args))
+      (lower_return args))
