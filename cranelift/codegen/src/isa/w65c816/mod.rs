@@ -44,7 +44,10 @@ impl W65C816Backend {
         let emit_info = inst::EmitInfo::new(self.flags.clone(), self.isa_flags.clone());
         let sigs = SigSet::new::<abi::W65C816MachineDeps>(func, &self.flags)?;
         let abi = abi::W65C816Callee::new(func, self, &self.isa_flags, &sigs)?;
-        compile::compile::<Self>(func, domtree, self, abi, emit_info, sigs, ctrl_plane)
+        let (vcode, regalloc) =
+            compile::compile::<Self>(func, domtree, self, abi, emit_info, sigs, ctrl_plane)?;
+
+        Ok((vcode, regalloc))
     }
 }
 

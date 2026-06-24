@@ -1,7 +1,9 @@
 use crate::isa::w65c816::W65C816Backend;
+use crate::isa::w65c816::settings as w65c816_settings;
 use crate::machinst::Reg;
 use crate::machinst::{CallInfo, MachInst, isle::*};
 use crate::machinst::{VCodeConstant, VCodeConstantData};
+use crate::settings as shared_settings;
 use crate::{
     ir::{
         AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags, Opcode, TrapCode,
@@ -19,6 +21,7 @@ type VecArgPair = Vec<ArgPair>;
 pub mod generated_code;
 
 use generated_code::MInst;
+use target_lexicon::triple;
 
 pub(crate) struct W65C816IsleContext<'a, 'b, I, B>
 where
@@ -43,9 +46,26 @@ impl generated_code::Context for W65C816IsleContext<'_, '_, MInst, W65C816Backen
     isle_lower_prelude_methods!();
 
     #[inline]
-    fn emit(&mut self, arg0: &MInst) -> Unit {
-        self.lower_ctx.emit(arg0.clone());
+    fn emit(&mut self, inst: &MInst) -> Unit {
+        self.lower_ctx.emit(inst.clone());
     }
+
+    // fn spillslot_mem_from_reg(&mut self, reg: Reg) -> Option<AModeMem> {
+    //     let spillslot = reg.to_spillslot()?;
+    //     let mem = AModeMem::Direct {
+    //         direct: AModeDirect::StackOffset {
+    //             offset: generated_code::StackOffset::Slot {
+    //                 offset: spillslot.index().try_into().expect("Stack size overflow"),
+    //             },
+    //         },
+    //     };
+    //     Some(mem)
+    // }
+    //
+    // #[inline]
+    // fn reg_from_writable_reg(&mut self, writable: WritableReg) -> Reg {
+    //     writable.to_reg()
+    // }
 }
 
 /// The main entry point for lowering with ISLE.

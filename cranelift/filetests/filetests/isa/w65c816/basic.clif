@@ -6,3 +6,13 @@ block0(v0: i16, v1: i16):
     v2 = iadd v0, v1
     return v2
 }
+
+; VCode:
+; block0:
+;   store Y, S,slot+0
+;   adc X, X, S,slot+0
+;   ret
+;
+; Disassembled:
+; 9893006300A960
+

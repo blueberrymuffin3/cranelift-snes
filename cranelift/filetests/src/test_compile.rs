@@ -84,6 +84,9 @@ impl SubTest for TestCompile {
                     pulley_interpreter::decode::Decoder::decode_all(&mut disas)?;
                     disas.disas().to_string()
                 }
+                target_lexicon::Architecture::Unknown => {
+                    compiled_code.buffer.stringify_code_bytes()
+                }
                 _ => {
                     let cs = isa.to_capstone().map_err(|e| anyhow::format_err!("{e}"))?;
                     compiled_code.disassemble(Some(&params), &cs)?

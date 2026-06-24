@@ -1,22 +1,38 @@
 use std::vec::Vec;
 
-use crate::MachInst;
+use regalloc2::OperandKind;
+use regalloc2::OperandPos;
 
+use crate::MachInst;
+use crate::MachLabel;
+use crate::Reg;
+use crate::Writable;
 use crate::binemit::CodeOffset;
+use crate::ir::Type;
+use crate::isa::FunctionAlignment;
 use crate::isa::w65c816::abi::W65C816MachineDeps;
+pub use crate::isa::w65c816::lower::isle::generated_code::AModeDirect;
+pub use crate::isa::w65c816::lower::isle::generated_code::AModeIndexed;
+pub use crate::isa::w65c816::lower::isle::generated_code::AModeLoad;
+pub use crate::isa::w65c816::lower::isle::generated_code::AModeMem;
+pub use crate::isa::w65c816::lower::isle::generated_code::AModeStore;
 pub use crate::isa::w65c816::lower::isle::generated_code::MInst as Inst;
 use crate::machinst::ArgPair;
+use crate::machinst::CallType;
 use crate::machinst::MachInstLabelUse;
+use crate::machinst::MachTerminator;
 use crate::machinst::OperandVisitorImpl;
 use crate::machinst::RegClass;
 use crate::opts::I16;
+use crate::settings::Flags;
 
+mod args;
 mod emit;
+mod fmt;
 mod regs;
 
 pub use emit::EmitInfo;
-use regalloc2::OperandKind;
-use regalloc2::OperandPos;
+pub use regs::W65C816FixedStackSlot;
 pub use regs::W65C816Reg;
 pub use regs::make_machine_env;
 
@@ -28,15 +44,38 @@ impl MachInst for Inst {
 
     fn get_operands(&mut self, collector: &mut impl crate::machinst::OperandVisitor) {
         match self {
-            Inst::Alu { rd, rs1, rs2, .. } => {
-                collector.reg_use(rs1);
-                collector.add_operand(
-                    rs2,
-                    regalloc2::OperandConstraint::Stack,
-                    OperandKind::Use,
-                    OperandPos::Late,
-                );
+            Inst::DummyUse { reg } => {
+                collector.reg_use(reg);
+            }
+            Inst::Move { rd, rs } => {
+                collector.reg_use(rs);
                 collector.reg_def(rd);
+            }
+            Inst::Store { mem, reg } => {
+                // TODO: Clobber A when needed
+                collector.reg_use(reg);
+            }
+            Inst::Load { mem, reg } => {
+                // TODO: Clobber A when needed?
+                collector.reg_def(reg);
+            }
+            Inst::Nop => {}
+            Inst::Alu { rd, rs1, rs2, .. } => {
+                collector.add_operand(
+                    rs1,
+                    regalloc2::OperandConstraint::Any,
+                    OperandKind::Use,
+                    OperandPos::Early,
+                );
+                if let AModeLoad::VReg { vreg } = rs2 {
+                    collector.add_operand(
+                        vreg,
+                        regalloc2::OperandConstraint::Stack,
+                        OperandKind::Use,
+                        OperandPos::Late,
+                    );
+                }
+                collector.any_def(rd);
             }
             Inst::Args { args } => {
                 for ArgPair { vreg, preg } in args {
@@ -53,52 +92,53 @@ impl MachInst for Inst {
         }
     }
 
-    fn is_move(&self) -> Option<(crate::Writable<crate::Reg>, crate::Reg)> {
-        todo!()
+    fn is_move(&self) -> Option<(Writable<Reg>, Reg)> {
+        None
     }
 
-    fn is_term(&self) -> crate::machinst::MachTerminator {
-        todo!()
+    fn is_term(&self) -> MachTerminator {
+        match self {
+            Inst::Bra { .. } => MachTerminator::Branch,
+            Inst::Rets { .. } => MachTerminator::Ret,
+            _ => MachTerminator::None,
+        }
     }
 
     fn is_trap(&self) -> bool {
-        todo!()
+        false
     }
 
     fn is_args(&self) -> bool {
-        todo!()
+        matches!(self, Inst::Args { .. })
     }
 
-    fn call_type(&self) -> crate::machinst::CallType {
-        todo!()
+    fn call_type(&self) -> CallType {
+        CallType::None
     }
 
     fn is_included_in_clobbers(&self) -> bool {
-        todo!()
+        match self {
+            Inst::Args { .. } => false,
+            _ => true,
+        }
     }
 
     fn is_mem_access(&self) -> bool {
-        todo!()
+        false
     }
 
-    fn gen_move(
-        to_reg: crate::Writable<crate::Reg>,
-        from_reg: crate::Reg,
-        ty: crate::ir::Type,
-    ) -> Self {
-        todo!()
+    fn gen_move(to_reg: Writable<Reg>, from_reg: Reg, ty: Type) -> Self {
+        Inst::Move {
+            rd: to_reg,
+            rs: from_reg,
+        }
     }
 
-    fn gen_dummy_use(reg: crate::Reg) -> Self {
-        todo!()
+    fn gen_dummy_use(reg: Reg) -> Self {
+        Inst::DummyUse { reg }
     }
 
-    fn rc_for_type(
-        ty: crate::ir::Type,
-    ) -> crate::CodegenResult<(
-        &'static [crate::machinst::RegClass],
-        &'static [crate::ir::Type],
-    )> {
+    fn rc_for_type(ty: Type) -> crate::CodegenResult<(&'static [RegClass], &'static [Type])> {
         if ty.bytes() > 2 {
             return Err(crate::CodegenError::Unsupported(
                 "Only 8 and 16 bit values supported".into(),
@@ -107,36 +147,39 @@ impl MachInst for Inst {
         Ok((&[RegClass::Int], &[I16]))
     }
 
-    fn canonical_type_for_rc(rc: crate::machinst::RegClass) -> crate::ir::Type {
+    fn canonical_type_for_rc(rc: RegClass) -> Type {
         I16
     }
 
-    fn gen_jump(target: crate::MachLabel) -> Self {
-        todo!()
+    fn gen_jump(target: MachLabel) -> Self {
+        Inst::Bra { target }
     }
 
     fn gen_nop(preferred_size: usize) -> Self {
-        todo!()
+        Inst::Nop
     }
 
     fn gen_nop_units() -> Vec<Vec<u8>> {
-        todo!()
+        vec![vec![0xEA]]
     }
 
-    fn worst_case_size() -> crate::binemit::CodeOffset {
-        todo!()
+    fn worst_case_size() -> CodeOffset {
+        4
     }
 
-    fn ref_type_regclass(_flags: &crate::settings::Flags) -> crate::machinst::RegClass {
-        todo!()
+    fn ref_type_regclass(_flags: &Flags) -> RegClass {
+        RegClass::Int
     }
 
     fn is_safepoint(&self) -> bool {
-        todo!()
+        false // TODO: True for calls
     }
 
-    fn function_alignment() -> crate::isa::FunctionAlignment {
-        todo!()
+    fn function_alignment() -> FunctionAlignment {
+        FunctionAlignment {
+            minimum: 1,
+            preferred: 1,
+        }
     }
 }
 
@@ -172,7 +215,7 @@ impl MachInstLabelUse for LabelUse {
     }
 
     fn worst_case_veneer_size() -> CodeOffset {
-        todo!()
+        3 // BRL $abcd
     }
 
     fn generate_veneer(self, buffer: &mut [u8], veneer_offset: CodeOffset) -> (CodeOffset, Self) {

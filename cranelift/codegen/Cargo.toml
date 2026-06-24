@@ -31,6 +31,7 @@ cranelift-bforest = { workspace = true }
 cranelift-bitset = { workspace = true }
 cranelift-control = { workspace = true }
 hashbrown = { workspace = true, features = ["default-hasher"] }
+itertools = { workspace = true }
 target-lexicon = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true, optional = true }

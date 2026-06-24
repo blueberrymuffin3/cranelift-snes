@@ -782,6 +782,7 @@ dependencies = [
  "env_logger 0.11.5",
  "gimli 0.33.0",
  "hashbrown 0.17.0",
+ "itertools 0.14.0",
  "libm",
  "log",
  "postcard",

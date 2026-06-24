@@ -1,3 +1,4 @@
+; Types
 (type AluOp
   (enum
     (Ora)
@@ -6,19 +7,89 @@
     (Sbc)
 ))
 
+(type StackOffset
+  (enum
+    (Arg (offset u8))
+    (Slot (offset u8))
+))
+
+(type AModeDirect
+  (enum
+    (Absolute (addr u16))
+    (DirectPage (addr u8))
+    (DirectPageIndirect (addr u8))
+    (StackOffset (offset StackOffset))
+))
+
+(type AModeIndexed
+  (enum
+    (AbsoluteIndexed (addr u16))
+    (DirectPageIndexed (addr u8))
+    (DirectPageIndexedIndirect (addr u8))
+    (DirectPageIndirectIndexed (addr u8))
+    (StackOffsetIndirectIndexed (offset StackOffset))
+))
+
+(type AModeMem
+  (enum
+    (Direct (direct AModeDirect))
+    (Indexed (base AModeIndexed) (offset Reg))
+))
+
+(type AModeLoad
+  (enum
+    (Mem (mem AModeMem))
+    (Immediate (value u16))
+    (VReg (vreg Reg))
+))
+
+(type AModeStore
+  (enum
+    (Mem (mem AModeMem))
+    (VReg (vreg WritableReg))
+))
+
 (type MInst
   (enum
+    ; Virtual Instructions
+    (DummyUse (reg Reg))
+    (Nop)
+    (Args (args VecArgPair))
+    (Rets (rets VecRetPair))
+
+    ; Real Instructions
+    (Move (rd WritableReg) (rs Reg))
+    (Store (mem AModeStore) (reg Reg))
+    (Load (mem AModeLoad) (reg WritableReg))
     (Alu
       (op AluOp)
       (rd WritableReg)
       (rs1 Reg)
-      (rs2 Reg))
-    (Bra (label MachLabel))
-    (Args (args VecArgPair))
-    (Rets (rets VecRetPair))
+      (rs2 AModeLoad))
+    (Bra (target MachLabel))
     (Ret)
 ))
 
+
+; Conversions
+(decl amode_mem_to_amode_load (AModeMem) AModeLoad)
+(rule (amode_mem_to_amode_load amode_mem) (AModeLoad.Mem amode_mem))
+(convert AModeMem AModeLoad amode_mem_to_amode_load)
+
+(decl amode_mem_to_amode_store (AModeMem) AModeStore)
+(rule (amode_mem_to_amode_store amode_mem) (AModeStore.Mem amode_mem))
+(convert AModeMem AModeStore amode_mem_to_amode_store)
+
+(decl reg_to_amode_load (Reg) AModeLoad)
+(rule (reg_to_amode_load reg) (AModeLoad.VReg reg))
+(convert Reg AModeLoad reg_to_amode_load)
+
+(decl reg_to_amode_store (WritableReg) AModeStore)
+(rule (reg_to_amode_store reg) (AModeStore.VReg reg))
+(convert Reg AModeStore reg_to_amode_store)
+
+
+; Helpers
 (decl w65_alu_op (AluOp Reg Reg) Reg)
 (rule (w65_alu_op op src1 src2)
       (let ((dst WritableReg (temp_writable_reg $I16))
